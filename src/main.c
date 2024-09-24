@@ -75,7 +75,7 @@ void runGameLoop(GameState *state, int textured)
  * @maze: the current map of the game.
  * Returns: voide
  */
-void initializeState(GameState *state, int *maze)
+void initializeState(GameState *state, int **maze)
 {
 	memset(state, 0, sizeof(GameState));
 
@@ -87,7 +87,7 @@ void initializeState(GameState *state, int *maze)
 	state->viewPlane.y = 0.66;
 	state->time = 0;
 	state->quit = false;
-	state->maze = maze;
+	state->maze = *maze;
 }
 
 /**
@@ -106,14 +106,13 @@ int main(void)
 	if (map == NULL)
 		return (1);
 
-	initializeState(&state, map);
+	initializeState(&state, &map);
 	if (!init_SDLInstance(&state))
 	{
 		free(map);
 		destroy_SDLInstance(&state);
 		return (1);
 	}
-
 	if (textured)
 		loadMapTextures(&state);
 	runGameLoop(&state, textured);
