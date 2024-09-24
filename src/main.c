@@ -1,83 +1,103 @@
 #include "defs.h"
 #include "graphics.h"
+#include "player.h"
 #include "raycast.h"
-#include "utils.h"
-#include <SDL2/SDL_events.h>
-#include <SDL2/SDL_render.h>
+#include "map.h"
 
-int isRunning = 1;
-
-/*
- * processInput - process input from the sdl instance.
+/**
+ * handleExitMaze - Game loop that checks if user quits or
+ * toggles fullscreen
+ * @state: Represents pointer to the Game struct
  *
- * Returns: void
- * */
-void processInput()
-{
-    SDL_Event event;
-
-    SDL_PollEvent(&event);
-    switch (event.type)
-    {
-        case SDL_QUIT:
-        {
-            isRunning = 0;
-            break;
-        }
-        case SDL_KEYDOWN:
-        {
-            break;
-        }
-    }
- 
-}
-
-/*
- * render - renders the current frame of the player
- *
- * Returns: void
+ * Return: True if user quits, else False
  */
-void render(Coordinate_F pos, Coordinate_D dir, Coordinate_D plane, int **map)
+bool handleExitMaze(GameState *state)
 {
-    renderWalls(pos, dir, plane, map);
+	SDL_Event event;
+	uint32_t windowFlags;
+
+	while (SDL_PollEvent(&event))
+	{
+		switch (event.type)
+		{
+		case SDL_QUIT:
+			return (true);
+		case SDL_KEYDOWN:
+			switch (event.key.keysym.sym)
+			{
+			case SDLK_ESCAPE:
+				return (true);
+			case SDLK_q:
+				windowFlags = SDL_GetWindowFlags(state->window);
+				SDL_SetWindowFullscreen(state->window, (windowFlags &
+					SDL_WINDOW_FULLSCREEN) ? 0 :
+					SDL_WINDOW_FULLSCREEN);
+				break;
+			default:
+				break;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+	SDL_Delay(16);
+	return (false);
 }
 
-/*
+/**
+ * runGameLoop - Responsible for running the main state loop
+ * @state: Pointer to the state structure
+ * @textured: Textured flag
+ *
+ * Return: Returns 0 on success, non-zero on failure
+ */
+void runGameLoop(GameState *state, int textured)
+{
+	while (!state->quit)
+	{
+		if (!textured)
+			castCeilingAndFloor(state);
+
+		renderWalls(state, textured);
+
+		handlePlayerMovement(state);
+
+		if (handleExitMaze(state))
+			state->quit = 1;
+	}
+}
+
+/**
  * main - Entry point
  *
- * Returns: status of the execution
- * */
-int main() {
-    const char *filename = "map.txt";
-    int **map, size;
+ * Return: status of the execution
+ */
+int main(void)
+{
+	char *filename = "assets/maps/map_01";
+	int *map;
+	GameState state;
+	int textured = false;
 
-    map = readMapFromFile(filename, &size);
-    if (map == NULL)
-        return (1);
+	map = readMapFromFile(filename);
+	if (map == NULL)
+		return (1);
 
-    printMap(map, size);
+	printMap(map);
 
-    double time = 0;
-    double oldTime = 0;
-    Coordinate_F currentPosition = { 22.0f, 12.0f };
-    Coordinate_D dir = { -1, 0 };
-    Coordinate_D plane = { 0, 0.66 };
+	if (!init_SDLInstance(&state, map))
+	{
+		free(map);
+        destroy_SDLInstance(&state);
+		return (1);
+	}
 
-    if (init_SDLInstance())
-    {
-        freeMap(map, size);
-        return (1);
-    }
+	if (textured)
+		loadMapTextures(&state);
+	runGameLoop(&state, textured);
 
-    while (isRunning)
-    {
-        printf("started running %d\n", isRunning);
-        processInput();
-        render(currentPosition, dir, plane, map);
-    }
-
-    destroy_SDLInstance();
-    freeMap(map, size);
-    return (0);
+	destroy_SDLInstance(&state);
+	free(map);
+	return (0);
 }
-

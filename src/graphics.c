@@ -1,131 +1,134 @@
 #include "graphics.h"
-#include "colors.h"
 #include "defs.h"
-#include <SDL2/SDL_events.h>
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_timer.h>
-
-/* Global pointer to hold the SDL instance */
-static SDL_Instance *instance = NULL;
 
 /**
  * init_SDLInstance - Initialize SDL window and renderer
+ * @state: Pointer to GameState structure
  * Return: 0 on success, 1 on failure
  */
-int init_SDLInstance(void)
+bool init_SDLInstance(GameState *state, int *maze)
 {
-    /* Allocate memory for the instance */
-    instance = malloc(sizeof(SDL_Instance));
-    if (instance == NULL)
-    {
-        fprintf(stderr, "Unable to allocate memory for SDL instance\n");
-        return (1);
-    }
+	/* Initialize the state structure */
+	memset(state, 0, sizeof(GameState));
 
-    /* Initialize SDL with video subsystem */
-    if (SDL_Init(SDL_INIT_VIDEO) != 0)
-    {
-        fprintf(stderr, "Unable to initialize SDL: %s\n", SDL_GetError());
-        free(instance);
-        return (1);
-    }
+	state->position.x = 1;
+	state->position.y = 12;
+	state->direction.x = 1;
+	state->direction.y = -0.66;
+	state->viewPlane.x = 0;
+	state->viewPlane.y = 0.66;
+	state->time = 0;
+	state->quit = false;
+	state->maze = maze;
 
-    /* Create an SDL window */
-    instance->window = SDL_CreateWindow(
-        NULL,                        /* Window title */
-        SDL_WINDOWPOS_CENTERED,       /* x position */
-        SDL_WINDOWPOS_CENTERED,       /* y position */
-        WINDOW_WIDTH,                 /* Window width */
-        WINDOW_HEIGHT,                /* Window height */
-        SDL_WINDOW_RESIZABLE          /* Window flags */
-    );
+	/* Initialize SDL with video subsystem */
+	if (SDL_Init(SDL_INIT_VIDEO) != 0)
+	{
+		fprintf(stderr, "Unable to initialize SDL: %s\n", SDL_GetError());
+		return (false);
+	}
 
-    if (instance->window == NULL)
-    {
-        fprintf(stderr, "Error creating SDL window: %s\n", SDL_GetError());
-        SDL_Quit();
-        free(instance);
-        return (1);
-    }
+	/* Create an SDL window */
+	state->window = SDL_CreateWindow(
+		"Maze",                        /* Window title */
+		SDL_WINDOWPOS_UNDEFINED,       /* x position */
+		SDL_WINDOWPOS_UNDEFINED,       /* y position */
+		SCREEN_WIDTH,                 /* Window width */
+		SCREEN_HEIGHT,                /* Window height */
+		SDL_WINDOW_SHOWN          /* Window flags */
+	);
 
-    /* Create an SDL renderer with hardware acceleration and VSync */
-    instance->renderer = SDL_CreateRenderer(
-        instance->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC
-    );
+	if (state->window == NULL)
+	{
+		fprintf(stderr, "Error creating SDL window: %s\n", SDL_GetError());
+		SDL_Quit();
+		return (false);
+	}
 
-    if (instance->renderer == NULL)
-    {
-        SDL_DestroyWindow(instance->window);
-        fprintf(stderr, "Error creating renderer: %s\n", SDL_GetError());
-        SDL_Quit();
-        free(instance);
-        return (1);
-    }
+	/* Create an SDL renderer with hardware acceleration and VSync */
+	state->renderer = SDL_CreateRenderer(
+		state->window, -1,
+		SDL_RENDERER_ACCELERATED
+	);
 
-    /* Set the draw color to black and clear the screen */
-    SDL_SetRenderDrawColor(instance->renderer, 0, 0, 0, 255);
-    SDL_RenderClear(instance->renderer);
-    SDL_RenderPresent(instance->renderer);
+	if (state->renderer == NULL)
+	{
+		SDL_DestroyWindow(state->window);
+		fprintf(stderr, "Error creating renderer: %s\n", SDL_GetError());
+		SDL_Quit();
+		return (false);
+	}
 
-    /* Create a texture for rendering */
-    instance->texture = SDL_CreateTexture(
-        instance->renderer,
-        SDL_PIXELFORMAT_RGBA32,
-        SDL_TEXTUREACCESS_STREAMING,
-        WINDOW_WIDTH,
-        WINDOW_HEIGHT
-    );
+	/* Create a texture for rendering */
+	state->texture = SDL_CreateTexture(
+		state->renderer,
+		SDL_PIXELFORMAT_ARGB8888,
+		SDL_TEXTUREACCESS_STREAMING,
+		SCREEN_WIDTH,
+		SCREEN_HEIGHT
+	);
 
-    if (instance->texture == NULL)
-    {
-        SDL_DestroyRenderer(instance->renderer);
-        SDL_DestroyWindow(instance->window);
-        fprintf(stderr, "Error creating texture: %s\n", SDL_GetError());
-        SDL_Quit();
-        free(instance);
-        return (1);
-    }
+	if (state->texture == NULL)
+	{
+		SDL_DestroyRenderer(state->renderer);
+		SDL_DestroyWindow(state->window);
+		fprintf(stderr, "Error creating texture: %s\n", SDL_GetError());
+		SDL_Quit();
+		return (false);
+	}
 
-    return (0);
+	return (true);
 }
 
 /**
  * destroy_SDLInstance - Frees all SDL resources
+ * @state: Pointer to GameState structure
+ * Return: void
  */
-void destroy_SDLInstance(void)
+void destroy_SDLInstance(GameState *state)
 {
-    /* Destroy texture, renderer, and window in reverse order of creation */
-    SDL_DestroyTexture(instance->texture);
-    SDL_DestroyRenderer(instance->renderer);
-    SDL_DestroyWindow(instance->window);
+	/* Destroy texture, renderer, and window in reverse order of creation */
+	SDL_DestroyTexture(state->texture);
+	SDL_DestroyRenderer(state->renderer);
+	SDL_DestroyWindow(state->window);
 
-    /* Free the instance memory */
-    free(instance);
-
-    /* Quit SDL subsystems */
-    SDL_Quit();
+	/* Quit SDL subsystems */
+	SDL_Quit();
 }
 
 /**
-* render_WallStripe - renders a wall stripe
-*
-* @drawStart: start of the drawing
-* @drawEnd: end of the drawing
-* @code: the code of the tile
-* @side: the direction of the ray.
-* @stripe: the vertical stripe.
-* Returns: void
-*/
-void render_WallStrip(int drawStart, int drawEnd, int code, int side, int stripe)
+ * update_SDLFrames - Updating renderer with updated buffer / texture
+ * @state: Pointer to the GameState structure
+ * @textured: True if user enabled textures, otherwise False
+ * Return: void
+ */
+void update_SDLFrames(GameState *state, int textured)
 {
-    ColorRGBA color = generateWallColor(code, side);
-    printColor(&color);  /* Print the color for debugging purposes */
+	int x, y;
 
-    /* Set the color to the renderer */
-    SDL_SetRenderDrawColor(instance->renderer, color.red, color.green, color.blue, color.alpha);
-    SDL_RenderClear(instance->renderer);
-    SDL_RenderDrawLine(instance->renderer, stripe, drawStart, stripe, drawEnd);
-    /* Render only within the range from drawStart to drawEnd */ 
-    SDL_RenderPresent(instance->renderer);
+	if (!state || !state->renderer)
+	{
+		return;  /* Check for NULL pointers */
+	}
+
+	/* Draw buffer to renderer */
+	if (textured && state->texture)
+	{
+		SDL_UpdateTexture(state->texture, NULL, state->screenBuffer,
+			SCREEN_WIDTH * 4);
+		SDL_RenderClear(state->renderer);
+		SDL_RenderCopy(state->renderer, state->texture, NULL, NULL);
+
+		/* Clear buffer */
+		for (x = 0; x < SCREEN_WIDTH; x++)
+		{
+			for (y = 0; y < SCREEN_HEIGHT; y++)
+			{
+				state->screenBuffer[y][x] = 0;
+			}
+		}
+	}
+
+	/* Update screen */
+	SDL_RenderPresent(state->renderer);
 }
-

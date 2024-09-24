@@ -2,54 +2,44 @@
 #define CONSTANTS_H
 
 #include <stdint.h>
+#include <SDL2/SDL.h>
+#define SCREEN_WIDTH 1000
+#define SCREEN_HEIGHT 800
+#define TEXTURE_WIDTH 64
+#define TEXTURE_HEIGHT 64
+#define TEXTURE_COUNT 6
+#define MAP_WIDTH 25
+#define MAP_HEIGHT 24
+#define MAP_CHAR_COUNT 1275
 
-#define WINDOW_WIDTH 640 
-#define WINDOW_HEIGHT 480
+#include <stdbool.h>
 
 /**
- * struct Coordinate_I - Struct for integer coordinates
+ * struct point_s - data structure for XY point coordinates of type double
  * @x: x coordinate
  * @y: y coordinate
  */
-typedef struct
-{
-    int x;
-    int y;
-} Coordinate_I;
-
-/**
- * struct Coordinate_D - Struct for double coordinates
- * @x: x coordinate
- * @y: y coordinate
- */
-typedef struct
+typedef struct point_s
 {
     double x;
     double y;
-} Coordinate_D;
+} point_t;
 
-/**
- * struct Coordinate_F - Struct for float coordinates
- * @x: x coordinate
- * @y: y coordinate
- */
-typedef struct
-{
-    float x;
-    float y;
-} Coordinate_F;
+typedef struct {
+    SDL_Window *window;
+    SDL_Renderer *renderer;
+    SDL_Texture *texture;
+    uint32_t tiles[TEXTURE_COUNT][TEXTURE_HEIGHT][TEXTURE_HEIGHT];
+    uint32_t screenBuffer[SCREEN_HEIGHT][SCREEN_WIDTH];
+    point_t position;
+    point_t direction;
+    point_t viewPlane;
+    double time;
+    int *maze;
+    int textured;
+    int quit;
+} GameState;
 
-/**
- * enum CoordType - Enum to define the coordinate type
- * @INT_COORD: Integer coordinate
- * @DOUBLE_COORD: Double coordinate
- * @FLOAT_COORD: Float coordinate
- */
-typedef enum
-{
-    INT_COORD,
-    DOUBLE_COORD,
-    FLOAT_COORD
-} CoordType;
+void printGameState(GameState *state);
 
 #endif // !DEBUG

@@ -1,256 +1,209 @@
 #include "raycast.h"
-#include "defs.h"
-#include "graphics.h"
-#include "utils.h"
-#include <math.h>
 
 /**
- * DDA - Digital Differential Analysis
- *
- * @side: the direction the wall is (0 for NS, 1 for EW).
- * @sideDist: distance from the player to the next grid along the ray.
- * @deltaDist: distance between consecutive intersections on the grid.
- * @tile: the current x and y position of the player.
- * @step: the step direction along the x and y axes (-1 or 1).
- * @worldMap: 2D array representing the map grid.
- * Return: value at the current position in worldMap.
+ * drawWallStrips - Responsible for drawing slice of wall
+ * to buffer
+ * @state: pointer to the Game structure
+ * @map: X/Y coordinates of box of maze currently in
+ * @rayPos: X/Y coordinates of ray position
+ * @rayDir: direction of X/Y coordinates of ray position
+ * @distToWall: distance to wall from camera
+ * @x: number of ray casted
+ * @side: determines whether wall is N/S or E/W
+ * @textured: True if user enabled textures, otherwise False
+ * Return: Always void
  */
-int DDA(int *side, Coordinate_D *sideDist, Coordinate_D deltaDist,
-        Coordinate_I *tile, Coordinate_I step, int (**worldMap))
+void drawWallStrips(GameState *state, SDL_Point map, point_t rayPos,
+	point_t rayDir, double distToWall, int x, int side, int textured)
 {
-    int hit = 0;
-    int code = 0;
+	int sliceHeight, drawStart, drawEnd, tileIndex, width, height, y;
+	double wallX;
+	SDL_Point tex;
+	uint32_t color;
+	int *maze = state->maze;
 
-    while (hit == 0)
-    {
-        if (sideDist->x < sideDist->y)
-        {
-            sideDist->x += deltaDist.x;
-            tile->x += step.x;
-            *side = 0;
-        }
-        else
-        {
-            sideDist->y += deltaDist.y;
-            tile->y += step.y;
-            *side = 1;
-        }
-
-        code = *(*(worldMap + tile->x) + tile->y);
-        if (code > 0)
-            hit = 1;
-    }
-
-    return (code);
+	if (!state || !maze)
+		return;
+	if (!textured)
+	{
+		SDL_GetWindowSize(state->window, &width, &height);
+		sliceHeight = (int)(height / distToWall);
+		drawStart = -sliceHeight / 2 + height / 2;
+		if (drawStart < 0)
+			drawStart = 0;
+		drawEnd = sliceHeight / 2 + height / 2;
+		if (drawEnd >= height)
+			drawEnd = height - 1;
+		SDL_SetRenderDrawColor(state->renderer,
+            side == 0 ? 192 : 128,
+            side == 0 ? 192 : 128,
+            side == 0 ? 192 : 128, 255);
+		SDL_RenderDrawLine(state->renderer, x, drawStart, x, drawEnd);
+	}
+	else
+	{
+		sliceHeight = (int)(SCREEN_HEIGHT / distToWall);
+		drawStart = -sliceHeight / 2 + SCREEN_HEIGHT / 2;
+		if (drawStart < 0)
+			drawStart = 0;
+		drawEnd = sliceHeight / 2 + SCREEN_HEIGHT / 2;
+		if (drawEnd >= SCREEN_HEIGHT)
+			drawEnd = SCREEN_HEIGHT - 1;
+		wallX = side == 0 ? rayPos.y + distToWall * rayDir.y
+			: rayPos.x + distToWall * rayDir.x;
+		if (map.x < 0 || map.x >= MAP_WIDTH || map.y < 0 ||
+			map.y >= MAP_HEIGHT)
+			return;
+		tileIndex = *((int *)maze + map.x * MAP_WIDTH + map.y) - 1;
+		wallX -= floor(wallX);
+		tex.x = (int)(wallX * (double)TEXTURE_WIDTH);
+		if (tex.x < 0 || tex.x >= TEXTURE_WIDTH)
+			return;
+		if ((side == 0 && rayDir.x > 0) || (side == 1 && rayDir.y < 0))
+			tex.x = TEXTURE_WIDTH - tex.x - 1;
+		for (y = drawStart; y < drawEnd; y++)
+		{
+			tex.y = ((((y << 1) - SCREEN_HEIGHT + sliceHeight)
+				<< (int)log2(TEXTURE_HEIGHT)) / sliceHeight) >> 1;
+			if (tex.y < 0 || tex.y >= TEXTURE_HEIGHT)
+				continue;
+			color = state->tiles[tileIndex][tex.x][tex.y];
+			if (side == 1)
+				color = (color >> 1) & 0x7F7F7F;
+			if (y >= 0 && y < SCREEN_HEIGHT)
+				state->screenBuffer[y][x] = color;
+		}
+		cast_EnvTextures(state, map, rayDir, distToWall, wallX,
+			drawEnd, x, side);
+	}
 }
 
 /**
- * findRayCoordinates - Calculates ray direction for current stripe.
- *
- * @cameraX: camera X value from -1 to +1 (relative to the plane).
- * @dir: direction vector of the player.
- * @plane: perpendicular plane vector.
- * Return: Ray direction as a Coordinate_D struct.
- */
-Coordinate_D findRayCoordinates(double cameraX, Coordinate_D dir, Coordinate_D plane)
-{
-    Coordinate_D coords;
-
-    coords.x = dir.x + plane.x * cameraX;
-    coords.y = dir.y + plane.y * cameraX;
-
-    return (coords);
-}
-
-/**
- * findCoordinateSteps - Calculate steps and initial side distances.
- *
- * @step: pointer to step coordinates.
- * @sideDist: pointer to side distance coordinates.
- * @tile: current tile of the player.
- * @rayDir: direction of the ray.
- * @deltaDist: distance between successive intersections.
- * @pos: current position of the player.
+ * calculateRayPosition - Calculates the ray position and direction
+ * @state: pointer to the GameState structure
+ * @stripe: current ray counter
+ * @rayPosition: pointer to the ray position structure
+ * @rayDirection: pointer to the ray direction structure
+ * @tilePosition: pointer to the map position structure
+ * @deltaDistance: pointer to the distance to next structure
+ * @stepDirection: pointer to the step direction structure
+ * @sidePosition: pointer to the position to next structure
  * Return: void
  */
-void findCoordinateSteps(Coordinate_I *step, Coordinate_D *sideDist,
-                         Coordinate_I tile, Coordinate_D rayDir,
-                         Coordinate_D deltaDist, Coordinate_F pos)
+void calculateRayPosition(GameState *state, int i, point_t *rayPosition,
+		point_t *rayDirection, SDL_Point *currentPosition, point_t *deltaDistance,
+		SDL_Point *stepDirection, point_t *sidePosition)
 {
-    if (rayDir.x < 0)
-    {
-        step->x = -1;
-        sideDist->x = (pos.x - tile.x) * deltaDist.x;
-    }
-    else
-    {
-        step->x = 1;
-        sideDist->x = (tile.x + 1.0 - pos.x) * deltaDist.x;
-    }
+	double camX;
 
-    if (rayDir.y < 0)
-    {
-        step->y = -1;
-        sideDist->y = (pos.y - tile.y) * deltaDist.y;
-    }
-    else
-    {
-        step->y = 1;
-        sideDist->y = (tile.y + 1.0 - pos.y) * deltaDist.y;
-    }
+	camX = 2 * i / (double)SCREEN_WIDTH - 1;
+
+	rayPosition->x = state->position.x;
+	rayPosition->y = state->position.y;
+	rayDirection->x = state->direction.x + state->viewPlane.x * camX;
+	rayDirection->y = state->direction.y + state->viewPlane.y * camX;
+
+	currentPosition->x = (int)rayPosition->x;
+	currentPosition->y = (int)rayPosition->y;
+
+	deltaDistance->x = rayDirection->x == 0 ? INFINITY :
+		sqrt(1 + pow(rayDirection->y, 2) / pow(rayDirection->x, 2));
+	deltaDistance->y = rayDirection->y == 0 ? INFINITY :
+		sqrt(1 + pow(rayDirection->x, 2) / pow(rayDirection->y, 2));
+
+	stepDirection->x = rayDirection->x < 0 ? -1 : 1;
+	stepDirection->y = rayDirection->y < 0 ? -1 : 1;
+
+	sidePosition->x = rayDirection->x < 0 ? (rayPosition->x - currentPosition->x) *
+		deltaDistance->x : (currentPosition->x + 1.0 - rayPosition->x) *
+		deltaDistance->x;
+	sidePosition->y = rayDirection->y < 0 ? (rayPosition->y - currentPosition->y) *
+		deltaDistance->y : (currentPosition->y + 1.0 - rayPosition->y) *
+		deltaDistance->y;
 }
-
-int cast_Ray2(int **worldMap, int x, int *drawStart, int *drawEnd, int *side)
-{
-    double posX = 2.0, posY = 2.0; // Player's start position
-double dirX = -1.0, dirY = 0.0; // Initial direction
-double planeX = 0.0, planeY = 0.66; // The 2D raycaster version of the camera plane
-
-    // Calculate ray position and direction
-    double cameraX = 2 * x / (double)WINDOW_WIDTH - 1; // X-coordinate in camera space
-    double rayDirX = dirX + planeX * cameraX;
-    double rayDirY = dirY + planeY * cameraX;
-
-    // Which box of the map we're in
-    int mapX = (int)posX;
-    int mapY = (int)posY;
-
-    // Length of ray from one x or y-side to next x or y-side
-    double deltaDistX = (rayDirX == 0) ? 1e30 : fabs(1 / rayDirX);
-    double deltaDistY = (rayDirY == 0) ? 1e30 : fabs(1 / rayDirY);
-
-    // Calculate step and initial sideDist
-    int stepX, stepY;
-    double sideDistX, sideDistY;
-
-    // Initial values for step and sideDist
-    if (rayDirX < 0) {
-        stepX = -1;
-        sideDistX = (posX - mapX) * deltaDistX;
-    } else {
-        stepX = 1;
-        sideDistX = (mapX + 1.0 - posX) * deltaDistX;
-    }
-    if (rayDirY < 0) {
-        stepY = -1;
-        sideDistY = (posY - mapY) * deltaDistY;
-    } else {
-        stepY = 1;
-        sideDistY = (mapY + 1.0 - posY) * deltaDistY;
-    }
-
-    // Perform DDA (Digital Differential Analysis)
-    int hit = 0; // Was there a wall hit?
-    int code;
-    while (hit == 0) {
-        // Jump to next map square
-        if (sideDistX < sideDistY) {
-            sideDistX += deltaDistX;
-            mapX += stepX;
-            *side = 0;
-        } else {
-            sideDistY += deltaDistY;
-            mapY += stepY;
-            *side = 1;
-        }
-        // Check if we hit a wall
-        code = worldMap[mapX][mapY];
-        if (code > 0) hit = 1;
-    }
-
-    // Calculate distance projected on camera direction (Euclidean distance will give a fisheye effect)
-    double perpWallDist = (*side == 0)
-                          ? (mapX - posX + (1 - stepX) / 2) / rayDirX
-                          : (mapY - posY + (1 - stepY) / 2) / rayDirY;
-
-    // Calculate height of line to draw on screen
-    int lineHeight = (int)(WINDOW_HEIGHT / perpWallDist);
-
-    // Calculate lowest and highest pixel to fill in current stripe
-    *drawStart = -lineHeight / 2 + WINDOW_HEIGHT / 2;
-    if (*drawStart < 0) *drawStart = 0;
-    *drawEnd = lineHeight / 2 + WINDOW_HEIGHT / 2;
-    if (*drawEnd >= WINDOW_HEIGHT) *drawEnd = WINDOW_HEIGHT - 1;
-
-    return (code);
-}
-
-
 
 /**
- * renderWalls - Render vertical wall slices.
- *
- * @pos: current player position.
- * @dir: player direction vector.
- * @plane: perpendicular plane vector.
- * @worldMap: 2D array of map tiles.
+ * renderWalls - Renders vertical wall slices
+ * @state: pointer to the GameState structure
+ * @textured: flag to determine whether to render textures
  * Return: void
  */
-void renderWalls(Coordinate_F pos, Coordinate_D dir, Coordinate_D plane, int **worldMap)
+void renderWalls(GameState *state, int textured)
 {
     int i;
+	point_t rayPosition, rayDirection, sidePosition, deltaDistance;
+	SDL_Point currentPosition, stepDirection;
+	int hit, side;
+	double distanceToWall;
+    int *maze = state->maze;
 
-    for (i = 0; i < WINDOW_WIDTH; i++)
-    {
-        int drawStart, drawEnd, side;
-        // int code = castRay(pos, dir, plane, worldMap, i, &drawStart, &drawEnd, &side);
-        int code = cast_Ray2(worldMap, i, &drawStart, &drawEnd, &side);
-        render_WallStrip(drawStart, drawEnd, code, side, i);
-    }
+	for (i = 0; i < SCREEN_WIDTH; i++)
+	{
+		calculateRayPosition(state, i, &rayPosition, &rayDirection,
+			&currentPosition, &deltaDistance, &stepDirection, &sidePosition);
+
+		for (hit = 0; hit == 0;)
+		{
+			if (sidePosition.x < sidePosition.y)
+			{
+				sidePosition.x += deltaDistance.x;
+				currentPosition.x += stepDirection.x;
+				side = 0;
+			}
+			else
+			{
+				sidePosition.y += deltaDistance.y;
+				currentPosition.y += stepDirection.y;
+				side = 1;
+			}
+
+			if (*((int *)maze + currentPosition.x * MAP_WIDTH + currentPosition.y) > 0)
+				hit = 1;
+		}
+
+		distanceToWall = side == 0 ? (currentPosition.x - rayPosition.x +
+			(1 - stepDirection.x) / 2) / rayDirection.x :
+			(currentPosition.y - rayPosition.y + (1 - stepDirection.y) / 2) /
+			rayDirection.y;
+
+		drawWallStrips(state, currentPosition, rayPosition, rayDirection,
+			distanceToWall, i, side, textured);
+	}
+
+	update_SDLFrames(state, textured);
 }
 
 /**
- * castRay - Cast a ray for a single vertical slice.
- *
- * @pos: current player position.
- * @dir: player direction vector.
- * @plane: perpendicular plane vector.
- * @worldMap: 2D array of map tiles.
- * @stripe: current vertical slice index.
- * @drawStart: pointer to start drawing pixel.
- * @drawEnd: pointer to end drawing pixel.
- * @side: pointer to side (0 for x-side, 1 for y-side).
- * Return: value at the current position in worldMap.
+ * castCeilingAndFloor - Renders the background ceiling and floor
+ * @state: pointer to the GameState structure
+ * Return: void
  */
-int castRay(Coordinate_F pos, Coordinate_D dir, Coordinate_D plane,
-            int **worldMap, int stripe, int *drawStart, int *drawEnd, int *side)
+void castCeilingAndFloor(GameState *state)
 {
-    double cameraX = 2 * stripe / (double)WINDOW_WIDTH - 1;
-    Coordinate_D rayDir = findRayCoordinates(cameraX, dir, plane);
-    Coordinate_I currentTile = { (int)pos.x, (int)pos.y };
+	SDL_Rect bgCeiling;
+    SDL_Rect bgFloor;
+    int winWidth;
+    int winHeight;
 
-    double deltaDistX = (rayDir.x == 0) ? 1e30 : fabs(1 / rayDir.x);
-    double deltaDistY = (rayDir.y == 0) ? 1e30 : fabs(1 / rayDir.y);
 
-    Coordinate_D deltaDist = { deltaDistX, deltaDistY };
-    Coordinate_I step = { 0, 0 };
-    Coordinate_D sideDist = { 0.0, 0.0 };
+    SDL_GetWindowSize(state->window, &winWidth, &winHeight);
 
-    findCoordinateSteps(&step, &sideDist, currentTile, rayDir, deltaDist, pos);
+    bgCeiling.x = 0;
+    bgCeiling.y = 0;
+    bgCeiling.w = winWidth;
+    bgCeiling.h = winHeight / 2;
 
-    int code = DDA(side, &sideDist, deltaDist, &currentTile, step, worldMap);
+    bgFloor.x = 0;
+    bgFloor.y = winHeight / 2;
+    bgFloor.w = winWidth;
+    bgFloor.h = winHeight / 2;
 
-    int distToWall = (*side == 0) ? (sideDist.x - deltaDist.x) : (sideDist.y - deltaDist.y);
+    /* draw background ceiling */
+    SDL_SetRenderDrawColor(state->renderer, 135, 206, 235, 255);
+    SDL_RenderFillRect(state->renderer, &bgCeiling);
 
-    printf("Distance to wall %d\n", distToWall);
-    printCoordinate(&rayDir, DOUBLE_COORD, "Ray dir");
-    printCoordinate(&sideDist, INT_COORD, "Side dist");
-    printCoordinate(&deltaDist, DOUBLE_COORD, "Delta dist");
-    printCoordinate(&currentTile, INT_COORD, "Player tile");
-    if (distToWall == 0)
-        distToWall = 1;
-
-    int lineHeight = ((int)WINDOW_HEIGHT / distToWall);
-
-    *drawStart = (WINDOW_HEIGHT / 2) - (lineHeight / 2);
-    if (*drawStart < 0)
-        *drawStart = 0;
-
-    *drawEnd = lineHeight / 2 + WINDOW_HEIGHT / 2;
-    if (*drawEnd >= WINDOW_HEIGHT)
-        *drawEnd = WINDOW_HEIGHT - 1;
-
-    printf("DrawStart: %d, DrawEnd: %d\n", *drawStart, *drawEnd);
-
-    return (code);
+    /* draw background floor */
+    SDL_SetRenderDrawColor(state->renderer, 34, 139, 34, 255);
+    SDL_RenderFillRect(state->renderer, &bgFloor);
 }
+

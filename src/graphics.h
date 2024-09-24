@@ -1,19 +1,14 @@
-#ifndef SDL_UTILS_H
-#define SDL_UTILS_H
+#ifndef _GRAPHICS_H_
+#define _GRAPHICS_H_
 
-#include <SDL2/SDL.h>
+#include "textures.h"
 #include "defs.h"
-#include "colors.h"
+#include <SDL2/SDL_events.h>
+#include <SDL2/SDL_render.h>
+#include <SDL2/SDL_timer.h>
 
-typedef struct SDL_Instance
-{
-    SDL_Window *window;
-    SDL_Renderer *renderer;
-    SDL_Texture *texture;
-} SDL_Instance;
-
-int init_SDLInstance(void);
-void destroy_SDLInstance(void);
-void render_WallStrip(int drawStart, int drawEnd, int code, int side, int stripe);
+bool init_SDLInstance(GameState *state, int *maze);
+void destroy_SDLInstance(GameState *state);
+void update_SDLFrames(GameState *state, int textured);
 
 #endif
