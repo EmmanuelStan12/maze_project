@@ -48,10 +48,12 @@ int loadTextures(SDL_Surface *parsedOrigin[])
 {
 	int i, n;
 	const char *textureFiles[TEXTURE_COUNT] = {
-		"assets/textures/walls-used.png",
-		"assets/textures/ceiling.png",
-		"assets/textures/brick-wall-background-texture_1048-16945.png",
-		"assets/textures/showcasing-castle.png",
+		"assets/textures/brick_1.jpg",
+		"assets/textures/brick_2.jpg",
+		"assets/textures/brick_3.jpg",
+		"assets/textures/brick_4.jpg",
+		"assets/textures/floor.jpg",
+		"assets/textures/ceiling.jpg"
 	};
 
 	for (n = 0; n < TEXTURE_COUNT; n++)
@@ -156,10 +158,10 @@ void cast_EnvTextures(GameState *state, SDL_Point mapPos, point_t rayDir,
 	point_t envPixelPos = get_EnvPixelPosition(mapPos, rayDir, wallX, wallSide);
 	point_t currentEnvPixel;
 	SDL_Point txPos;
-	double weight;
-	double currentDist;
-	int y;
+	double weight, currentDist;
+	int y, textureIndex;
 
+	textureIndex = wallSide == 0 ? 0 : 1;
 	if (drawEnd < 0)
 		drawEnd = SCREEN_HEIGHT;
 
@@ -178,15 +180,17 @@ void cast_EnvTextures(GameState *state, SDL_Point mapPos, point_t rayDir,
 
 		if (txPos.x < 0 || txPos.x >= TEXTURE_WIDTH ||
 		    txPos.y < 0 || txPos.y >= TEXTURE_HEIGHT)
-		{
-			continue; /* Boundary check */
-		}
+			continue;
 
 		if (y >= 0 && y < SCREEN_HEIGHT)
-			state->screenBuffer[y][col] = state->tiles[5][txPos.y][txPos.x];
+			state->screenBuffer[y][col] = state->tiles[textureIndex][txPos.y][txPos.x];
 		if (SCREEN_HEIGHT - y >= 0 &&
 		    SCREEN_HEIGHT - y < SCREEN_HEIGHT)
+		{
 			state->screenBuffer[SCREEN_HEIGHT - y][col] =
+				state->tiles[5][txPos.y][txPos.x];
+			state->screenBuffer[y][col] =
 				state->tiles[4][txPos.y][txPos.x];
+		}
 	}
 }

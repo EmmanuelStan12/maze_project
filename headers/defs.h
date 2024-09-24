@@ -7,10 +7,9 @@
 #define SCREEN_HEIGHT 800
 #define TEXTURE_WIDTH 64
 #define TEXTURE_HEIGHT 64
-#define TEXTURE_COUNT 4
+#define TEXTURE_COUNT 6
 #define MAP_WIDTH 25
 #define MAP_HEIGHT 24
-#define MAP_CHAR_COUNT 1275
 
 #include <stdbool.h>
 

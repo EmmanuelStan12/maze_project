@@ -100,7 +100,7 @@ int main(void)
 	char *filename = "assets/maps/map_01";
 	int *map;
 	GameState state;
-	int textured = false;
+	int textured = true;
 
 	map = readMapFromFile(filename);
 	if (map == NULL)
