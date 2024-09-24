@@ -1,4 +1,4 @@
-#include "player.h"
+#include "../headers/player.h"
 
 /**
  * movePlayer - handling player movement based on keyboard input
@@ -11,7 +11,6 @@
 void movePlayer(GameState *state, int *maze, double directionX,
 		double directionY, double modifier)
 {
-    printGameState(state);
 	int newSpotX = (int)(state->position.x + directionX * modifier);
 	int newSpotY = (int)(state->position.y + directionY * modifier);
 

@@ -1,41 +1,8 @@
-#include "defs.h"
+#include "../headers/defs.h"
 #include <SDL2/SDL_image.h>
 
 /**
- * getColorFromPixel - Responsible for retrieving color
- * value from a pixel
- * @pixel: Represents a pointer to the pixel data
- * @format: Represents a pointer to the SDL_PixelFormat
- * structure
- * Return: 32-bit color value in ARGB8888 format
- */
-uint32_t get_ColorFromPixel(uint8_t *pixel, SDL_PixelFormat *format)
-{
-	uint32_t color = 0;
-
-	switch (format->BytesPerPixel)
-	{
-	case 1:
-		color = *pixel;
-		break;
-	case 2:
-		color = *(uint16_t *)pixel;
-		break;
-	case 3:
-		if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
-			color = pixel[0] << 16 | pixel[1] << 8 | pixel[2];
-		else
-			color = pixel[0] | pixel[1] << 8 | pixel[2] << 16;
-		break;
-	case 4:
-		color = *(uint32_t *)pixel;
-		break;
-	}
-	return (color);
-}
-
-/**
- * extractTexturePixels - Responsible for extracting pixels
+ * extract_TexturePixels - Responsible for extracting pixels
  * from a single texture
  * @state: Represents a pointer to the Game structure
  * @texture: Pointer to the SDL_Surface representing the texture
@@ -53,7 +20,7 @@ void extract_TexturePixels(GameState *state, SDL_Surface *texture, int index)
 
 	for (j = 0; j < TEXTURE_HEIGHT; j++)
 	{
-        for (k = 0; k < TEXTURE_WIDTH; k++)
+		for (k = 0; k < TEXTURE_WIDTH; k++)
 		{
 			flipped_j = TEXTURE_HEIGHT - 1 - j;
 
@@ -72,47 +39,8 @@ void extract_TexturePixels(GameState *state, SDL_Surface *texture, int index)
 	SDL_UnlockSurface(texture);
 }
 
-
-/**
- * extractPixels - Responsible for extracting pixel data
- * from loaded textures
- * @state: Represents a pointer to the GameState structure
- * @parsedOrigin: Represnts an array of loaded textures
- * Return: Always void
- */
-void extract_Pixels(GameState *state, SDL_Surface *parsedOrigin[])
-{
-	int i;
-
-	for (i = 0; i < TEXTURE_COUNT; i++)
-	{
-		extract_TexturePixels(state, parsedOrigin[i], i);
-		SDL_FreeSurface(parsedOrigin[i]);
-		parsedOrigin[i] = NULL;
-	}
-}
-
-/**
- * getTexturePaths - Adding texture file paths based on the design name
- * @design: name of the design
- * @textureFiles: array to store texture file paths
- * Return: true if the design name is valid, false otherwise
- */
-void get_TexturePaths(char *textureFiles[])
-{
-	const char *textures[TEXTURE_COUNT] = {
-        "assets/textures/walls-used.png",
-        "assets/textures/ceiling.png",
-        "assets/textures/brick-wall-background-texture_1048-16945.png",
-        "assets/textures/showcasing-castle.png",
-    };
-
-    memcpy(textureFiles, textures, sizeof(textures));
-}
-
 /**
  * loadTextures - loads textures into SDL surfaces
- * @textureFiles: array of texture file paths
  * @parsedOrigin: array to store loaded textures
  * Return: true if all textures were loaded successfully, false otherwise
  */
@@ -120,11 +48,11 @@ int loadTextures(SDL_Surface *parsedOrigin[])
 {
 	int i, n;
 	const char *textureFiles[TEXTURE_COUNT] = {
-        "assets/textures/walls-used.png",
-        "assets/textures/ceiling.png",
-        "assets/textures/brick-wall-background-texture_1048-16945.png",
-        "assets/textures/showcasing-castle.png",
-    };
+		"assets/textures/walls-used.png",
+		"assets/textures/ceiling.png",
+		"assets/textures/brick-wall-background-texture_1048-16945.png",
+		"assets/textures/showcasing-castle.png",
+	};
 
 	for (n = 0; n < TEXTURE_COUNT; n++)
 	{
@@ -149,7 +77,6 @@ int loadTextures(SDL_Surface *parsedOrigin[])
  * loadMapTextures - loads textures for the default design or the
  * specified design and extracts pixel data
  * @state: pointer to the GameState struct
- * @design: name of the design
  * Return: true if all textures were loaded and pixels extracted
  * successfully, false otherwise
  */
@@ -168,7 +95,7 @@ bool loadMapTextures(GameState *state)
 }
 
 /**
- * get_EnvPixelPosition - Responsible for calculating the environment pixel position
+ * get_EnvPixelPosition - Responsible for calculating the env pixel position
  * based on wall side and ray direction
  * @mapPos: Represents position of the map in the state
  * @rayDir: Represents the direction of the ray
@@ -223,7 +150,7 @@ int wallSide)
  * Return: void
  */
 void cast_EnvTextures(GameState *state, SDL_Point mapPos, point_t rayDir,
-    double distToWall, double wallX, int drawEnd, int col, int wallSide)
+		double distToWall, double wallX, int drawEnd, int col, int wallSide)
 {
 
 	point_t envPixelPos = get_EnvPixelPosition(mapPos, rayDir, wallX, wallSide);
@@ -232,10 +159,6 @@ void cast_EnvTextures(GameState *state, SDL_Point mapPos, point_t rayDir,
 	double weight;
 	double currentDist;
 	int y;
-
-	if (!state)
-	    return;
-
 
 	if (drawEnd < 0)
 		drawEnd = SCREEN_HEIGHT;

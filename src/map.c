@@ -1,5 +1,5 @@
-#include "map.h"
-#include "defs.h"
+#include "../headers/map.h"
+#include "../headers/defs.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -35,6 +35,7 @@ int *readMapFromFile(char *filename)
 		for (j = 0; j < MAP_WIDTH; j++)
 		{
 			int value;
+
 			if (fscanf(file, "%d", &value) != 1)
 			{
 				fprintf(stderr, "Error: Invalid data in file\n");

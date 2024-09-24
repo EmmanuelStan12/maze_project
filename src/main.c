@@ -1,8 +1,8 @@
-#include "defs.h"
-#include "graphics.h"
-#include "player.h"
-#include "raycast.h"
-#include "map.h"
+#include "../headers/defs.h"
+#include "../headers/graphics.h"
+#include "../headers/player.h"
+#include "../headers/raycast.h"
+#include "../headers/map.h"
 
 /**
  * handleExitMaze - Game loop that checks if user quits or
@@ -69,6 +69,28 @@ void runGameLoop(GameState *state, int textured)
 }
 
 /**
+ * initializeState - initializes the state of the application
+ *
+ * @state: the initial state.
+ * @maze: the current map of the game.
+ * Returns: voide
+ */
+void initializeState(GameState *state, int *maze)
+{
+	memset(state, 0, sizeof(GameState));
+
+	state->position.x = 1;
+	state->position.y = 12;
+	state->direction.x = 1;
+	state->direction.y = -0.66;
+	state->viewPlane.x = 0;
+	state->viewPlane.y = 0.66;
+	state->time = 0;
+	state->quit = false;
+	state->maze = maze;
+}
+
+/**
  * main - Entry point
  *
  * Return: status of the execution
@@ -84,12 +106,11 @@ int main(void)
 	if (map == NULL)
 		return (1);
 
-	printMap(map);
-
-	if (!init_SDLInstance(&state, map))
+	initializeState(&state, map);
+	if (!init_SDLInstance(&state))
 	{
 		free(map);
-        destroy_SDLInstance(&state);
+		destroy_SDLInstance(&state);
 		return (1);
 	}
 

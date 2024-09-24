@@ -1,41 +1,21 @@
-#include "graphics.h"
-#include "defs.h"
+#include "../headers/graphics.h"
+#include "../headers/defs.h"
 
 /**
  * init_SDLInstance - Initialize SDL window and renderer
  * @state: Pointer to GameState structure
  * Return: 0 on success, 1 on failure
  */
-bool init_SDLInstance(GameState *state, int *maze)
+bool init_SDLInstance(GameState *state)
 {
-	/* Initialize the state structure */
-	memset(state, 0, sizeof(GameState));
-
-	state->position.x = 1;
-	state->position.y = 12;
-	state->direction.x = 1;
-	state->direction.y = -0.66;
-	state->viewPlane.x = 0;
-	state->viewPlane.y = 0.66;
-	state->time = 0;
-	state->quit = false;
-	state->maze = maze;
-
-	/* Initialize SDL with video subsystem */
 	if (SDL_Init(SDL_INIT_VIDEO) != 0)
 	{
 		fprintf(stderr, "Unable to initialize SDL: %s\n", SDL_GetError());
 		return (false);
 	}
-
-	/* Create an SDL window */
 	state->window = SDL_CreateWindow(
-		"Maze",                        /* Window title */
-		SDL_WINDOWPOS_UNDEFINED,       /* x position */
-		SDL_WINDOWPOS_UNDEFINED,       /* y position */
-		SCREEN_WIDTH,                 /* Window width */
-		SCREEN_HEIGHT,                /* Window height */
-		SDL_WINDOW_SHOWN          /* Window flags */
+		"Mazerre", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+		SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN
 	);
 
 	if (state->window == NULL)
@@ -45,12 +25,8 @@ bool init_SDLInstance(GameState *state, int *maze)
 		return (false);
 	}
 
-	/* Create an SDL renderer with hardware acceleration and VSync */
-	state->renderer = SDL_CreateRenderer(
-		state->window, -1,
-		SDL_RENDERER_ACCELERATED
-	);
-
+	state->renderer = SDL_CreateRenderer(state->window, -1,
+			SDL_RENDERER_ACCELERATED);
 	if (state->renderer == NULL)
 	{
 		SDL_DestroyWindow(state->window);
@@ -59,15 +35,9 @@ bool init_SDLInstance(GameState *state, int *maze)
 		return (false);
 	}
 
-	/* Create a texture for rendering */
 	state->texture = SDL_CreateTexture(
-		state->renderer,
-		SDL_PIXELFORMAT_ARGB8888,
-		SDL_TEXTUREACCESS_STREAMING,
-		SCREEN_WIDTH,
-		SCREEN_HEIGHT
-	);
-
+			state->renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
+			SCREEN_WIDTH, SCREEN_HEIGHT);
 	if (state->texture == NULL)
 	{
 		SDL_DestroyRenderer(state->renderer);
@@ -76,7 +46,6 @@ bool init_SDLInstance(GameState *state, int *maze)
 		SDL_Quit();
 		return (false);
 	}
-
 	return (true);
 }
 

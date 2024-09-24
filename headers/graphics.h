@@ -7,7 +7,7 @@
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_timer.h>
 
-bool init_SDLInstance(GameState *state, int *maze);
+bool init_SDLInstance(GameState *state);
 void destroy_SDLInstance(GameState *state);
 void update_SDLFrames(GameState *state, int textured);
 

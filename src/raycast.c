@@ -1,4 +1,61 @@
-#include "raycast.h"
+#include "../headers/raycast.h"
+
+/**
+ * drawTexturedWallStrips - Responsible for drawing textured strips.
+ * to buffer
+ * @state: pointer to the Game structure
+ * @map: X/Y coordinates of box of maze currently in
+ * @rayPos: X/Y coordinates of ray position
+ * @rayDir: direction of X/Y coordinates of ray position
+ * @distToWall: distance to wall from camera
+ * @x: number of ray casted
+ * @side: determines whether wall is N/S or E/W
+ * @textured: True if user enabled textures, otherwise False
+ * Return: Always void
+ */
+void drawTexturedWallStrips(GameState *state, SDL_Point map, point_t rayPos,
+	point_t rayDir, double distToWall, int x, int side)
+{
+	int sliceHeight, drawStart, drawEnd, tileIndex, y;
+	double wallX;
+	SDL_Point tex;
+	uint32_t color;
+	int *maze = state->maze;
+
+	sliceHeight = (int)(SCREEN_HEIGHT / distToWall);
+	drawStart = -sliceHeight / 2 + SCREEN_HEIGHT / 2;
+	if (drawStart < 0)
+		drawStart = 0;
+	drawEnd = sliceHeight / 2 + SCREEN_HEIGHT / 2;
+	if (drawEnd >= SCREEN_HEIGHT)
+		drawEnd = SCREEN_HEIGHT - 1;
+	wallX = side == 0 ? rayPos.y + distToWall * rayDir.y
+		: rayPos.x + distToWall * rayDir.x;
+	if (map.x < 0 || map.x >= MAP_WIDTH || map.y < 0 ||
+		map.y >= MAP_HEIGHT)
+		return;
+	tileIndex = *((int *)maze + map.x * MAP_WIDTH + map.y) - 1;
+	wallX -= floor(wallX);
+	tex.x = (int)(wallX * (double)TEXTURE_WIDTH);
+	if (tex.x < 0 || tex.x >= TEXTURE_WIDTH)
+		return;
+	if ((side == 0 && rayDir.x > 0) || (side == 1 && rayDir.y < 0))
+		tex.x = TEXTURE_WIDTH - tex.x - 1;
+	for (y = drawStart; y < drawEnd; y++)
+	{
+		tex.y = ((((y << 1) - SCREEN_HEIGHT + sliceHeight)
+			<< (int)log2(TEXTURE_HEIGHT)) / sliceHeight) >> 1;
+		if (tex.y < 0 || tex.y >= TEXTURE_HEIGHT)
+			continue;
+		color = state->tiles[tileIndex][tex.x][tex.y];
+		if (side == 1)
+			color = (color >> 1) & 0x7F7F7F;
+		if (y >= 0 && y < SCREEN_HEIGHT)
+			state->screenBuffer[y][x] = color;
+	}
+	cast_EnvTextures(state, map, rayDir, distToWall, wallX,
+		drawEnd, x, side);
+}
 
 /**
  * drawWallStrips - Responsible for drawing slice of wall
@@ -16,14 +73,8 @@
 void drawWallStrips(GameState *state, SDL_Point map, point_t rayPos,
 	point_t rayDir, double distToWall, int x, int side, int textured)
 {
-	int sliceHeight, drawStart, drawEnd, tileIndex, width, height, y;
-	double wallX;
-	SDL_Point tex;
-	uint32_t color;
-	int *maze = state->maze;
+	int sliceHeight, drawStart, drawEnd, width, height;
 
-	if (!state || !maze)
-		return;
 	if (!textured)
 	{
 		SDL_GetWindowSize(state->window, &width, &height);
@@ -34,60 +85,28 @@ void drawWallStrips(GameState *state, SDL_Point map, point_t rayPos,
 		drawEnd = sliceHeight / 2 + height / 2;
 		if (drawEnd >= height)
 			drawEnd = height - 1;
-		SDL_SetRenderDrawColor(state->renderer,
-            side == 0 ? 192 : 128,
-            side == 0 ? 192 : 128,
-            side == 0 ? 192 : 128, 255);
+		SDL_SetRenderDrawColor(state->renderer, side == 0 ? 192 : 128,
+				side == 0 ? 192 : 128,
+				side == 0 ? 192 : 128, 255);
 		SDL_RenderDrawLine(state->renderer, x, drawStart, x, drawEnd);
 	}
 	else
 	{
-		sliceHeight = (int)(SCREEN_HEIGHT / distToWall);
-		drawStart = -sliceHeight / 2 + SCREEN_HEIGHT / 2;
-		if (drawStart < 0)
-			drawStart = 0;
-		drawEnd = sliceHeight / 2 + SCREEN_HEIGHT / 2;
-		if (drawEnd >= SCREEN_HEIGHT)
-			drawEnd = SCREEN_HEIGHT - 1;
-		wallX = side == 0 ? rayPos.y + distToWall * rayDir.y
-			: rayPos.x + distToWall * rayDir.x;
-		if (map.x < 0 || map.x >= MAP_WIDTH || map.y < 0 ||
-			map.y >= MAP_HEIGHT)
-			return;
-		tileIndex = *((int *)maze + map.x * MAP_WIDTH + map.y) - 1;
-		wallX -= floor(wallX);
-		tex.x = (int)(wallX * (double)TEXTURE_WIDTH);
-		if (tex.x < 0 || tex.x >= TEXTURE_WIDTH)
-			return;
-		if ((side == 0 && rayDir.x > 0) || (side == 1 && rayDir.y < 0))
-			tex.x = TEXTURE_WIDTH - tex.x - 1;
-		for (y = drawStart; y < drawEnd; y++)
-		{
-			tex.y = ((((y << 1) - SCREEN_HEIGHT + sliceHeight)
-				<< (int)log2(TEXTURE_HEIGHT)) / sliceHeight) >> 1;
-			if (tex.y < 0 || tex.y >= TEXTURE_HEIGHT)
-				continue;
-			color = state->tiles[tileIndex][tex.x][tex.y];
-			if (side == 1)
-				color = (color >> 1) & 0x7F7F7F;
-			if (y >= 0 && y < SCREEN_HEIGHT)
-				state->screenBuffer[y][x] = color;
-		}
-		cast_EnvTextures(state, map, rayDir, distToWall, wallX,
-			drawEnd, x, side);
+		drawTexturedWallStrips(state, map, rayPos, rayDir,
+				distToWall, x, side);
 	}
 }
 
 /**
  * calculateRayPosition - Calculates the ray position and direction
- * @state: pointer to the GameState structure
- * @stripe: current ray counter
- * @rayPosition: pointer to the ray position structure
- * @rayDirection: pointer to the ray direction structure
- * @tilePosition: pointer to the map position structure
- * @deltaDistance: pointer to the distance to next structure
- * @stepDirection: pointer to the step direction structure
- * @sidePosition: pointer to the position to next structure
+ * @state: current game state.
+ * @i: current ray index.
+ * @rayPosition: ray position structure.
+ * @rayDirection: ray direction structure.
+ * @currentPosition: player current position structure.
+ * @deltaDistance: distance to difference in successive blocks in the grid.
+ * @stepDirection: step direction for x and y.
+ * @sidePosition: current position or next position of the player.
  * Return: void
  */
 void calculateRayPosition(GameState *state, int i, point_t *rayPosition,
@@ -114,11 +133,13 @@ void calculateRayPosition(GameState *state, int i, point_t *rayPosition,
 	stepDirection->x = rayDirection->x < 0 ? -1 : 1;
 	stepDirection->y = rayDirection->y < 0 ? -1 : 1;
 
-	sidePosition->x = rayDirection->x < 0 ? (rayPosition->x - currentPosition->x) *
-		deltaDistance->x : (currentPosition->x + 1.0 - rayPosition->x) *
+	sidePosition->x = rayDirection->x < 0 ?
+		(rayPosition->x - currentPosition->x) * deltaDistance->x :
+		(currentPosition->x + 1.0 - rayPosition->x) *
 		deltaDistance->x;
-	sidePosition->y = rayDirection->y < 0 ? (rayPosition->y - currentPosition->y) *
-		deltaDistance->y : (currentPosition->y + 1.0 - rayPosition->y) *
+	sidePosition->y = rayDirection->y < 0 ?
+		(rayPosition->y - currentPosition->y) * deltaDistance->y :
+		(currentPosition->y + 1.0 - rayPosition->y) *
 		deltaDistance->y;
 }
 
@@ -130,19 +151,18 @@ void calculateRayPosition(GameState *state, int i, point_t *rayPosition,
  */
 void renderWalls(GameState *state, int textured)
 {
-    int i;
+	int i;
 	point_t rayPosition, rayDirection, sidePosition, deltaDistance;
 	SDL_Point currentPosition, stepDirection;
-	int hit, side;
+	int hit = 0, side = 0;
 	double distanceToWall;
-    int *maze = state->maze;
+	int *maze = state->maze;
 
 	for (i = 0; i < SCREEN_WIDTH; i++)
 	{
 		calculateRayPosition(state, i, &rayPosition, &rayDirection,
 			&currentPosition, &deltaDistance, &stepDirection, &sidePosition);
-
-		for (hit = 0; hit == 0;)
+		while (hit == 0)
 		{
 			if (sidePosition.x < sidePosition.y)
 			{
@@ -169,7 +189,6 @@ void renderWalls(GameState *state, int textured)
 		drawWallStrips(state, currentPosition, rayPosition, rayDirection,
 			distanceToWall, i, side, textured);
 	}
-
 	update_SDLFrames(state, textured);
 }
 
@@ -180,30 +199,28 @@ void renderWalls(GameState *state, int textured)
  */
 void castCeilingAndFloor(GameState *state)
 {
-	SDL_Rect bgCeiling;
-    SDL_Rect bgFloor;
-    int winWidth;
-    int winHeight;
+	SDL_Rect rectCeiling;
+	SDL_Rect rectFloor;
+	int windowWidth;
+	int windowHeight;
 
 
-    SDL_GetWindowSize(state->window, &winWidth, &winHeight);
+	SDL_GetWindowSize(state->window, &windowWidth, &windowHeight);
 
-    bgCeiling.x = 0;
-    bgCeiling.y = 0;
-    bgCeiling.w = winWidth;
-    bgCeiling.h = winHeight / 2;
+	rectCeiling.x = 0;
+	rectCeiling.y = 0;
+	rectCeiling.w = windowWidth;
+	rectCeiling.h = windowHeight / 2;
 
-    bgFloor.x = 0;
-    bgFloor.y = winHeight / 2;
-    bgFloor.w = winWidth;
-    bgFloor.h = winHeight / 2;
+	rectFloor.x = 0;
+	rectFloor.y = windowHeight / 2;
+	rectFloor.w = windowWidth;
+	rectFloor.h = windowHeight / 2;
 
-    /* draw background ceiling */
-    SDL_SetRenderDrawColor(state->renderer, 135, 206, 235, 255);
-    SDL_RenderFillRect(state->renderer, &bgCeiling);
+	SDL_SetRenderDrawColor(state->renderer, 135, 206, 235, 255);
+	SDL_RenderFillRect(state->renderer, &rectCeiling);
 
-    /* draw background floor */
-    SDL_SetRenderDrawColor(state->renderer, 34, 139, 34, 255);
-    SDL_RenderFillRect(state->renderer, &bgFloor);
+	SDL_SetRenderDrawColor(state->renderer, 34, 139, 34, 255);
+	SDL_RenderFillRect(state->renderer, &rectFloor);
 }
 

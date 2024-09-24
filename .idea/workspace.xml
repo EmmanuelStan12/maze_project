@@ -4,11 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="0af631e2-600d-43eb-abe9-3aaa31a69e15" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/src/defs.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/defs.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main.c" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/texture.c" beforeDir="false" afterPath="$PROJECT_DIR$/src/texture.c" afterDir="false" />
-    </list>
+    <list default="true" id="0af631e2-600d-43eb-abe9-3aaa31a69e15" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -212,7 +208,7 @@
       <workItem from="1727162569502" duration="11000" />
       <workItem from="1727172118133" duration="37000" />
       <workItem from="1727172160931" duration="10000" />
-      <workItem from="1727172175863" duration="4130000" />
+      <workItem from="1727172175863" duration="4259000" />
     </task>
     <servers />
   </component>
