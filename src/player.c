@@ -15,7 +15,6 @@ void movePlayer(GameState *state, int *maze, double directionX,
 	int newSpotX = (int)(state->position.x + directionX * modifier);
 	int newSpotY = (int)(state->position.y + directionY * modifier);
 
-    printf("newSpotX %d, newSpotY %d, spot %d, first %d\n", newSpotX, newSpotY, maze[(newSpotX * MAP_WIDTH) + newSpotY], state->maze[0]);
 	if (newSpotX >= 0 && newSpotX < MAP_WIDTH && newSpotY >= 0 &&
 	    newSpotY < MAP_HEIGHT && !maze[newSpotX * MAP_WIDTH + newSpotY])
 	{
@@ -67,7 +66,6 @@ void handlePlayerMovement(GameState *state)
 	rotModifier = currentTime * 3.0;
 	if (keyboardState[SDL_SCANCODE_W])
 	{
-	    printf("W clicked %.2f\n", moveModifier);
 		movePlayer(state, maze, state->direction.x,
 			   state->direction.y, moveModifier);
 	}
@@ -83,7 +81,6 @@ void handlePlayerMovement(GameState *state)
 	}
 	if (keyboardState[SDL_SCANCODE_D])
 	{
-	    printf("D clicked\n");
 		rotatePlayer(state, rotModifier, 1);
 	}
 	if (keyboardState[SDL_SCANCODE_A])

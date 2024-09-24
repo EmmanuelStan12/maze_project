@@ -116,19 +116,23 @@ void get_TexturePaths(char *textureFiles[])
  * @parsedOrigin: array to store loaded textures
  * Return: true if all textures were loaded successfully, false otherwise
  */
-int loadTextures(const char *textureFiles[], SDL_Surface *parsedOrigin[])
+int loadTextures(SDL_Surface *parsedOrigin[])
 {
 	int i, n;
-	/* Load textures using a loop */
+	const char *textureFiles[TEXTURE_COUNT] = {
+        "assets/textures/walls-used.png",
+        "assets/textures/ceiling.png",
+        "assets/textures/brick-wall-background-texture_1048-16945.png",
+        "assets/textures/showcasing-castle.png",
+    };
+
 	for (n = 0; n < TEXTURE_COUNT; n++)
 	{
 		parsedOrigin[n] = IMG_Load(textureFiles[n]);
-		if (parsedOrigin[n] == NULL) /* If any texture failed to load */
+		if (parsedOrigin[n] == NULL)
 		{
-			/* Print an error message indicating which texture failed */
 			fprintf(stderr, "Failed to load texture %d: %s\n", n, IMG_GetError());
 
-			/* Clean up previously loaded textures to prevent memory leaks */
 			for (i = 0; i < n; i++)
 			{
 				SDL_FreeSurface(parsedOrigin[i]);
@@ -152,9 +156,8 @@ int loadTextures(const char *textureFiles[], SDL_Surface *parsedOrigin[])
 bool loadMapTextures(GameState *state)
 {
 	SDL_Surface *parsedOrigin[TEXTURE_COUNT] = {NULL};
-	const char *textureFiles[TEXTURE_COUNT];
 
-	if (!loadTextures(textureFiles, parsedOrigin))
+	if (!loadTextures(parsedOrigin))
 	{
 		return (false);
 	}

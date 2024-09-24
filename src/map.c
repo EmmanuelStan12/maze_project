@@ -45,7 +45,6 @@ int *readMapFromFile(char *filename)
 			map[i * MAP_WIDTH + j] = value;
 		}
 	}
-    printf("map-1: %d\n", map[0]);
 	fclose(file);
 	return (map);
 }
